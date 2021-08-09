@@ -30,6 +30,13 @@ func New() *Engine {
 	return engine
 }
 
+func Default() *Engine {
+	engine := New()
+	engine.Use(ApiCostTime(), Recovery())
+
+	return engine
+}
+
 func (g *RouterGroup) Group(prefix string) *RouterGroup {
 	newGroup := &RouterGroup{
 		prefix: g.prefix + prefix,
