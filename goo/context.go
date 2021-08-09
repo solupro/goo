@@ -87,3 +87,8 @@ func (c *Context) Next() {
 		c.handlers[c.index](c)
 	}
 }
+
+func (c *Context) Fail(code int, msg string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": msg})
+}
