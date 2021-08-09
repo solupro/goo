@@ -19,6 +19,7 @@ func main() {
 	}
 
 	v2 := r.Group("/v2")
+	v2.Use(goo.ApiCostTime())
 	{
 		v2.GET("/foo/:name", func(c *goo.Context) {
 			c.String(http.StatusOK, "hello %s, you're at %s\n", c.Param("name"), c.Path)
