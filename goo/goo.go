@@ -27,6 +27,7 @@ func New() *Engine {
 		router: newRouter(),
 	}
 	engine.RouterGroup = routerGroup
+	engine.groups = append(engine.groups, routerGroup)
 	return engine
 }
 
