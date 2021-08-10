@@ -18,7 +18,7 @@ func trace(message string) string {
 	for _, pc := range pcs[:n] {
 		fn := runtime.FuncForPC(pc)
 		file, line := fn.FileLine(pc)
-		str.WriteString(fmt.Sprintf("\n\t%s:%d", file, line))
+		str.WriteString(fmt.Sprintf("\n\t%s:%d [%s]", file, line, fn.Name()))
 	}
 	return str.String()
 }
