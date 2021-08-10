@@ -1,8 +1,10 @@
 package goo
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -11,6 +13,10 @@ type HandlerFunc func(*Context)
 type Engine struct {
 	*RouterGroup
 	groups []*RouterGroup
+
+	// template
+	htmlTemplates *template.Template
+	funcMap       template.FuncMap
 }
 
 type RouterGroup struct {
@@ -18,24 +24,6 @@ type RouterGroup struct {
 	middlewares []HandlerFunc
 	engine      *Engine
 	router      *router
-}
-
-func New() *Engine {
-	engine := &Engine{}
-	routerGroup := &RouterGroup{
-		engine: engine,
-		router: newRouter(),
-	}
-	engine.RouterGroup = routerGroup
-	engine.groups = append(engine.groups, routerGroup)
-	return engine
-}
-
-func Default() *Engine {
-	engine := New()
-	engine.Use(ApiCostTime(), Recovery())
-
-	return engine
 }
 
 func (g *RouterGroup) Group(prefix string) *RouterGroup {
@@ -66,6 +54,53 @@ func (g *RouterGroup) Use(middlewares ...HandlerFunc) {
 	g.middlewares = append(g.middlewares, middlewares...)
 }
 
+func (g *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutePath := path.Join(g.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+
+	return func(c *Context) {
+		file := c.Param("filepath")
+		if _, err := fs.Open(file); nil != err {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+func (g *RouterGroup) Static(relativePath, root string) {
+	handler := g.createStaticHandler(relativePath, http.Dir(root))
+	pattern := path.Join(relativePath, "/*filepath")
+	g.GET(pattern, handler)
+}
+
+func New() *Engine {
+	engine := &Engine{}
+	routerGroup := &RouterGroup{
+		engine: engine,
+		router: newRouter(),
+	}
+	engine.RouterGroup = routerGroup
+	engine.groups = append(engine.groups, routerGroup)
+	return engine
+}
+
+func Default() *Engine {
+	engine := New()
+	engine.Use(ApiCostTime(), Recovery())
+
+	return engine
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
+}
+
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var middlewares []HandlerFunc
 	for _, group := range engine.groups {
@@ -75,6 +110,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	c := newContext(w, req)
 	c.handlers = middlewares
+	c.engine = engine
 	engine.router.handle(c)
 }
 

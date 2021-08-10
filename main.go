@@ -1,14 +1,25 @@
 package main
 
 import (
+	"fmt"
 	"goo"
+	"html/template"
 	"net/http"
+	"time"
 )
 
 func main() {
 	r := goo.Default()
+	r.SetFuncMap(template.FuncMap{
+		"FormatAsDate": FormatAsDate,
+	})
+	r.LoadHTMLGlob("templates/*")
+	r.Static("/assets", "./static")
 	r.GET("/index", func(c *goo.Context) {
-		c.HTML(http.StatusOK, "<h1>Hello World</h1>")
+		c.HTML(http.StatusOK, "index.html", goo.H{
+			"name": c.Query("name"),
+			"now":  time.Now(),
+		})
 	})
 
 	r.GET("/crash", func(c *goo.Context) {
@@ -42,4 +53,9 @@ func main() {
 	}
 
 	r.Run(":8090")
+}
+
+func FormatAsDate(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
 }
